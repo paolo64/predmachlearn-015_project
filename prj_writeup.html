@@ -67,7 +67,8 @@ img {
 
 <div id="background" class="section level2">
 <h2>Background</h2>
-<p>Using some devices for fitness is now possible to collect a large amount of data about personal activity relatively inexpensively. The purpose of this project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har" class="uri">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset). Some Machine Learning models have been built a classifier to predict the manner in which they did the exercise.</p>
+<p>Using some devices for fitness is now possible to collect a large amount of data about personal activity relatively inexpensively. The purpose of this project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har" class="uri">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset).</p>
+<p>Some Machine Learning models have been used to build a <strong>classifier</strong> to predict the manner in which they did the exercise.</p>
 <p>Just the most relevant code is shown in this report. To check the whole code please see <a href="https://github.com/paolo64/predmachlearn-015_project/blob/master/prj_writeup.Rmd"><a href="https://github.com/paolo64/predmachlearn-015_project/blob/master/prj_writeup.Rmd" class="uri">https://github.com/paolo64/predmachlearn-015_project/blob/master/prj_writeup.Rmd</a></a></p>
 </div>
 <div id="data-exploration-and-preprocessing" class="section level2">
@@ -147,7 +148,7 @@ modTesting &lt;- training[-inTrain,]</code></pre>
 </div>
 <div id="model-creation" class="section level2">
 <h2>Model Creation</h2>
-<p>For model selection I run just two tests: the first is based classification tree on rpart and the second one on random forest. Random Forest has a very hugh accuracy, even if it could have performance problems. I’ll try other models outside this project.</p>
+<p>For model selection I run just two tests: the first is based classification tree on rpart and the second one on random forest. Random Forest has a very high accuracy, even if it could have performance problems. I’ll try other models outside this project.</p>
 <div id="classification-tree-on-rpart" class="section level3">
 <h3>Classification Tree on rpart</h3>
 <pre class="r"><code># Trainig
