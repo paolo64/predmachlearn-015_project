@@ -1,21 +1,208 @@
 ---
 title: "Practical Machine Learning - Project"
-date: "18 Jun 2015"
+date: "Jun 2015"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Background
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Using some devices for fitness is now possible to collect a large amount of data about personal activity relatively inexpensively.  The purpose of this project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). Some Machine Learning models have been built a classifier to predict the manner in which they did the exercise.
+
+Just the most relevant code is shown in this report. To check the whole code please see [https://github.com/paolo64/predmachlearn-015_project/blob/master/prj_writeup.Rmd](https://github.com/paolo64/predmachlearn-015_project/blob/master/prj_writeup.Rmd)
+
+
+
+## Data Exploration and Preprocessing
+
+The training data for this project are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+```{r,  message=FALSE, echo=FALSE}
+# Load libraries
+library(caret)
+library(randomForest)
+library(e1071)
+library(MASS)
+
+# Load data from files
+setwd("/Users/paolo/tmp/prj08pml/")
+trainRaw <- read.csv("pml-training.csv",na.strings=c("NA","#DIV/0!", ""))
+testRaw <- read.csv("pml-testing.csv",na.strings=c("NA","#DIV/0!", ""))
+
+# dim
+dimTrainRaw <- dim(trainRaw); 
+dimTestRaw <- dim(testRaw)
+classeT <- table(trainRaw$classe)
+```
+The data.frame of training raw data is: `r dimTrainRaw[[1]]` X `r dimTrainRaw[[2]]`.
+
+The data.frame of testing raw data is: `r dimTestRaw[[1]]` X `r dimTestRaw[[2]]`
+
+The outcome training variable is "classe". It is a "factor" variable with 5 levels: "A" (`r classeT[["A"]]` occurrences), "B"" (`r classeT[["B"]]` occurrences), "C" (`r classeT[["C"]]` occurrences), "D" (`r classeT[["D"]]` occurrences), "E" (`r classeT[["E"]]` occurrences).
+
+Both training and testing data contain a lot of NA, #DIV/0! and empty values, so `na.strings=c("NA","#DIV/0!", "")` parameter has been used in `read.csv` function.
+
+#### Data Cleaning
+
+
+```{r, message=FALSE, echo=FALSE}
+# Cleaning Data
+trainClean <- subset(trainRaw, select = -c(X, user_name, new_window, num_window, cvtd_timestamp,raw_timestamp_part_1, raw_timestamp_part_2))
+
+# clean test data
+testClean <- subset(testRaw, select = -c(X, user_name, new_window, num_window, cvtd_timestamp,raw_timestamp_part_1, raw_timestamp_part_2))
+
+# Remove columns with at least one NA 
+training <- trainClean[, colSums(is.na(trainClean)) == 0]
+testing <- testClean[, colSums(is.na(testClean)) == 0]
+dimTraining <- dim(training);
+
+# Remove columns whith a specific ratio of NA
+cutOffNARatio = 0.98
+colTBD <- (colSums(is.na(training)) > (nrow(training) * cutOffNARatio))
+training2 <- trainClean[!colTBD]
+testing2 <- testClean[!colTBD]
+
+dimTraining2 <- dim(training2);
+
+# Get variables with near zero variance and its names
+zeroV <- nearZeroVar(trainClean)
+namesNonZerovar <- names(trainClean[,zeroV])
+
+# check if the namesNonZerovar are already removed from training set, using intersection on names lists
+namesTraining <- names(training)
+diffNames <- setdiff(namesTraining,namesNonZerovar)
+areEqual <- all.equal(namesTraining,diffNames)
+```
+
+To select the predictors some data cleaning has been applied:
+
+1. The fields containing just bookkeeping info have been removed. They are incremental number (X), subject name (user_name), window related info (new_window, num_window) and timestamps (cvtd_timestamp,raw_timestamp_part_1, raw_timestamp_part_2) . That because the num_window number is 100% correlated with the outcome and because the classifier will work on new-data, 
+a stream of data from the sensors, without that kind of info.
+
+2. The fields containing NA can be dealt in different ways: a) removing every column with at least one NA; b) removing every column with a specific ratio of NA; c) or using data imputation method. I've adopted the first two methods because I do not want to introduce any new data to dataset. Using the method a) the number of the remaining predictors for training is **`r dimTraining[[2]]`**.
+With method b) if the **ratio threshold is `r format(round(cutOffNARatio, 2), nsmall = 2)`**, the number of the remaining predictors for training is **`r dimTraining2[[2]]`**. I did some test with different ratio threashold. To select the features I will use the two different training dataset, called  *`training`* for method a) and *`training2`* for method b). 
+
+3. Variables with near Zero variance which indicates that they do not contribute (enough) to the model. They are removed from the set. The function `nearZeroVar` has been used. As it is possible to see in the code (in .Rmd file) those variables are already off the *`training`* set. 
+
+## Features Selection
+To select the most importante variables the `rpart` model has been used. I run 5-fold cross validation on both *`training`* and *`training2`* dataset. Even if the accuracy of `rpart` model is low (~51%) the most important variables have been choosen (with `importance > 0`). For reproducibility of results `set.seed(...)` function is called every run.
+
 
 ```{r}
-summary(cars)
+set.seed(1964)
+
+fitControl <- trainControl(method = "cv", number = 5)   
+modelFit <- train(classe ~ ., method="rpart", data=training, na.action = na.pass, trControl = fitControl)  
+
+varImportance = varImp(modelFit)
+varImportance
+
+# Get variables with importance > 0 
+selectedFeatures <- rownames(varImportance$importance)[varImportance$importance > 0]
+numSelectedFeatures <- length(selectedFeatures)
+selectedFeatures
 ```
 
-You can also embed plots, for example:
+```{r, message=FALSE, echo=FALSE}
+# the following code shows the selected features are the same for the the methods considered to remove NAs a) and b)
+fitControl <- trainControl(method = "cv", number = 5)   
+modelFit2 <- train(classe ~ ., method="rpart", data=training2, na.action = na.pass, trControl = fitControl) 
+varImportance2 = varImp(modelFit2)
+selectedFeatures2 <- rownames(varImportance2$importance)[varImportance2$importance > 0]
+areEqual <- all.equal(selectedFeatures,selectedFeatures2)
+```
+As you can see from code (in .Rmd file) both *`training`* and *`training2`* dataset provide the same "most important variables".
 
-```{r, echo=FALSE}
-plot(cars)
+**The final number of predictor used for trainig is `r numSelectedFeatures`** + the outcome "classe".
+
+## Build of Training and Testing dataset
+For cross-validation the *`training`* has been splitted in 70% for sub-training and 30% for sub-testing.
+```{r}
+set.seed(1964)
+features = c(selectedFeatures, "classe")
+training <- training[features]
+inTrain <- createDataPartition(y=training$classe, p=0.7, list=FALSE)
+modTraining <- training[inTrain,]
+modTesting <- training[-inTrain,]
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Model Creation
+For model selection I run just two tests: the first is based classification tree on rpart and the second one on random forest.
+Random Forest has a very hugh accuracy, even if it could have performance problems. I'll try other models outside this project.
+
+### Classification Tree on rpart
+```{r}
+# Trainig
+modTreeFit <- train(classe ~ .,method="rpart",data=modTraining, na.action=na.omit)
+
+# Prediction
+predTree <- predict(modTreeFit, modTesting)
+
+# Confusion Matrix
+treecm <- confusionMatrix(predTree, modTesting$classe)
+# Overall Statistics
+treecm[["overall"]]
+```
+As I expected the accuracy is very low. Accuracy `r format(round(treecm[["overall"]][["Accuracy"]], 2), nsmall = 2)` is not acceptable.
+
+### Random Forest
+#### Training 
+To speed up the computation the `randomForest` package has been used instead of its wrapped version on `caret` library.
+```{r}
+# Random Forest
+rf = randomForest(classe ~ ., data=modTraining, na.action=na.omit)
+```
+
+#### Prediction on sub-training and sub-testing dataset 
+In Sample Error Rate and Confusion Matrix [sub-training]
+
+```{r}
+predrfTraining = predict(rf, modTraining)
+traincm <- confusionMatrix(predrfTraining, modTraining$classe)
+inSampleErrorRate <- (1-traincm[["overall"]][["Accuracy"]])
+
+# Overall Statistics
+traincm[["overall"]]
+```
+In Sample Error Rate: `r inSampleErrorRate`
+
+Out of Sample Error Rate and Confusion Matrix [sub-testing]
+```{r}
+predrf = predict(rf, modTesting)
+testcm <- confusionMatrix(predrf, modTesting$classe)
+outOfSampleErrorRate <- (1-testcm[["overall"]][["Accuracy"]])
+
+# Confusion Matrix
+testcm
+
+# Overall Statistics
+testcm[["overall"]]
+```
+Out of Sample Error Rate: `r outOfSampleErrorRate`
+
+## Conclusions
+**Random Forest model generated a high accurate model**. The final model has `r format(round(testcm[["overall"]][["Accuracy"]], 2), nsmall = 2)` accuracy, 95% CI (`r format(round(testcm[["overall"]][["AccuracyLower"]], 3), nsmall = 3)`, `r format(round(testcm[["overall"]][["AccuracyUpper"]], 3), nsmall = 3)`) and above `r format(round(testcm[["overall"]][["Kappa"]], 2), nsmall = 2)` Kappa.
+
+### Prediction on testing dataset
+```{r}
+predTest = predict(rf, testing) 
+predTest
+```
+
+
+```{r, message=FALSE, echo=FALSE}
+### Final 20 test
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(predTest)
+```
