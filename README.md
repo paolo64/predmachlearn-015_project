@@ -1,2 +1,6 @@
-# predmachlearn-015_project
-Practical Machine Learning Projecte
+# Practical Machine Learning Project
+
+The HTML version is availale in [https://paolo64.github.io/predmachlearn-015_project/prj_writeup.html](https://paolo64.github.io/predmachlearn-015_project/prj_writeup.html)
+
+
+
